@@ -2,11 +2,12 @@
  * SPDX-FileCopyrightText: 2026 mindreset
  * SPDX-License-Identifier: Apache-2.0
  *
- * 墨水屏刷新。四个按钮 2×2：整屏全刷、局部快刷、16 灰阶图（默认裁剪表）、
- * 8 灰阶图（原厂 30 相快表），各自报耗时。
+ * 墨水屏刷新。六个按钮 3×2：整屏全刷、局部快刷、16 灰阶图（默认裁剪表）、
+ * 8 灰阶图（原厂 30 相快表），以及只含灰阶条的 16 / 8 灰阶图，各自报耗时。
  *
- * EPD refresh. Four buttons in 2×2: full-screen, partial, 16-gray (default
- * cropped table), 8-gray (factory 30-phase fast table); each reports timing.
+ * EPD refresh. Six buttons in 3×2: full-screen, partial, 16-gray (default
+ * cropped table), 8-gray (factory 30-phase fast table), plus 16 / 8-gray
+ * pages with the gray bars only; each reports timing.
  */
 
 #include <stdio.h>
@@ -25,7 +26,9 @@
 #define DEMO_ACT_AREA 1
 #define DEMO_ACT_GRAY16 2
 #define DEMO_ACT_GRAY8 3
-#define DEMO_ACT_COUNT 4
+#define DEMO_ACT_GRAY16_BARS 4
+#define DEMO_ACT_GRAY8_BARS 5
+#define DEMO_ACT_COUNT 6
 
 static int32_t s_demo_ms[DEMO_ACT_COUNT];
 static int s_demo_last = -1;
@@ -34,11 +37,11 @@ static bool s_demo_invert;
 // Pattern is occupying the full screen. Stay there so the panel can be judged; the next tap returns to the page.
 static bool s_demo_pattern;
 
-// 四个按钮 2×2 排：下面一行就是底栏（右端仍留给菜单钮），上面一行同宽往上挪一格。
-// Four buttons in 2×2: the lower row is the bar (right end still the menu button); the upper row is the same width, one cell up.
+// 六个按钮 3×2 排：最下一行就是底栏（右端仍留给菜单钮），上面两行同宽逐行上移。
+// Six buttons in 3×2: the bottom row is the bar (right end still the menu button); the two rows above are the same width, one cell up each.
 static EpdRect demo_btn_rect(int i) {
     EpdRect rect = ui_bar_rect(i % 2, 2);
-    if (i < 2) rect.y -= UI_BAR_H + UI_GAP;
+    rect.y -= (DEMO_ACT_COUNT / 2 - 1 - i / 2) * (UI_BAR_H + UI_GAP);
     return rect;
 }
 
@@ -49,7 +52,7 @@ static int demo_btn_hit(uint16_t x, uint16_t y) {
     return -1;
 }
 
-// 局部快刷示范的区域：耗时四行下面一条，够看清 DU 的边界又不占满整页。/ Partial-refresh demo band: one strip under the four timing rows; enough to see the DU edge without filling the page.
+// 局部快刷示范的区域：耗时各行下面一条，够看清 DU 的边界又不占满整页。/ Partial-refresh demo band: one strip under the timing rows; enough to see the DU edge without filling the page.
 static EpdRect demo_area(void) {
     const int w = ui_content_width();
     return (EpdRect){
@@ -60,7 +63,9 @@ static EpdRect demo_area(void) {
     };
 }
 
-static void draw_pattern_page(uint8_t* framebuffer, const char* caption) {
+// bars_only：只画灰阶条与说明，下方黑块、棋盘、细线、文字都不画。
+// bars_only: draw the gray bars and their caption only; skip the blocks, checkerboard, lines and text below.
+static void draw_pattern_page(uint8_t* framebuffer, const char* caption, bool bars_only) {
     const int width = epd_rotated_display_width();
     const int inner = width - 2 * UI_MARGIN;
 
@@ -87,6 +92,10 @@ static void draw_pattern_page(uint8_t* framebuffer, const char* caption) {
         EPD_DRAW_ALIGN_LEFT, false
     );
     y += 44;
+    if (bars_only) {
+        ui_draw_menu_handle(framebuffer, false);
+        return;
+    }
 
     const int block_h = 200;
     epd_fill_rect(
@@ -153,6 +162,7 @@ static void draw_pattern_page(uint8_t* framebuffer, const char* caption) {
 static void draw_demo_page(uint8_t* fb) {
     static const char* const names[DEMO_ACT_COUNT] = {
         "整屏全刷 Full", "局部快刷 Partial", "16 灰阶图 16-Gray", "8 灰阶图 8-Gray",
+        "16 灰阶条 16-Bars", "8 灰阶条 8-Bars",
     };
     char line[48];
     ui_clear_page(fb);
@@ -245,22 +255,27 @@ static app_redraw_t demo_touch(app_ctx_t* ctx, const cst836u_touch_t* touch) {
             break;
         case DEMO_ACT_GRAY8:
         case DEMO_ACT_GRAY16:
+        case DEMO_ACT_GRAY8_BARS:
+        case DEMO_ACT_GRAY16_BARS: {
+            const bool gray8 = hit == DEMO_ACT_GRAY8 || hit == DEMO_ACT_GRAY8_BARS;
+            const bool bars_only = hit == DEMO_ACT_GRAY8_BARS || hit == DEMO_ACT_GRAY16_BARS;
             guard_draw_result(ctx->hl, flash_white(ctx));
             draw_pattern_page(
                 ctx->fb,
-                hit == DEMO_ACT_GRAY8
-                    ? "8 灰阶 30 相 8-Gray 30P　点按返回 Tap to Return"
-                    : "16 灰阶 36 相 16-Gray 36P　点按返回 Tap to Return"
+                gray8 ? "8 灰阶 30 相 8-Gray 30P　点按返回 Tap to Return"
+                      : "16 灰阶 36 相 16-Gray 36P　点按返回 Tap to Return",
+                bars_only
             );
             s_demo_pattern = true;
             display_hold_white_exit(true);
             started_us = esp_timer_get_time();
-            err = hit == DEMO_ACT_GRAY8
+            err = gray8
                 ? update_display_from_white_with(
                     ctx->hl, &E0470_GRAY8_WAVEFORM, MODE_GC16
                 )
                 : update_display_from_white(ctx->hl);
             break;
+        }
         default:
             return APP_REDRAW_NONE;
     }
