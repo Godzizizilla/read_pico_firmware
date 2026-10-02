@@ -11,6 +11,7 @@
 
 extern const app_desc_t app_home;
 extern const app_desc_t app_refresh;
+extern const app_desc_t app_gray_stripe_repro;
 extern const app_desc_t app_reading;
 extern const app_desc_t app_touch;
 extern const app_desc_t app_axis;
@@ -30,6 +31,7 @@ extern const app_desc_t app_transfer;
 static const app_desc_t* const s_apps[] = {
     &app_home,
     &app_refresh,
+    &app_gray_stripe_repro,
     &app_reading,
     &app_touch,
     &app_axis,

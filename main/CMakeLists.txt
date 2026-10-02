@@ -33,6 +33,7 @@ idf_component_register(
         "ui/ui_menu.c"
         "apps/app_home.c"
         "apps/app_refresh.c"
+        "apps/app_gray_stripe_repro.c"
         "apps/app_reading.c"
         "apps/app_book.c"
         "apps/app_transfer.c"
