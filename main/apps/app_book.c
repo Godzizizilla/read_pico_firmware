@@ -16,6 +16,7 @@
  * 卡失效时先保存进度并关闭阅读资源，再由主循环回退字体；禁止自动续读失效挂载。
  * 用户修订：进入书架只询问续读，确认前不打开上次图书，避免大书阻塞书架。
  * 用户修订：图片点击后才加载，预览返回不改变正文分页；只缓存当前章节最近查看的一幅图，已读重复位置不冒充全书首次位置。
+ * 用户新增：AirDrop 收到图书后经 book_store 一次性请求直接打开该书，不弹续读询问；其它进入方式不变。
  * Frozen: Phase4b uses the shared gesture entry and owns previous/tools/next keys; the toolbar keeps full refresh and the middle-key hold or handle opens the demo menu. Screen turns commit on release without pressed decoration.
  * Shake is experimental, off by default, forward only; exit disables AOI2 and sleeps it. Render only paints.
  * Join preparation before returning callbacks so menus/lock cannot race the page-local TTF lock.
@@ -27,6 +28,7 @@
  * Lost media saves progress and closes reader resources before global font fallback; never auto-resume an invalid mount.
  * User revision: offer resume on shelf entry; open the previous book only after confirmation to keep the shelf available.
  * User revision: load images only after a tap and return without repagination; cache one viewed image in the current chapter and distinguish visited-chapter origins from the first occurrence in the whole book.
+ * User addition: a book received over AirDrop is opened directly through a one-shot book_store request without the resume prompt; other entries are unchanged.
  */
 #include <dirent.h>
 #include <errno.h>
@@ -1385,15 +1387,19 @@ static app_redraw_t action_at(app_ctx_t* ctx, uint16_t x, uint16_t y) {
     }
     return APP_REDRAW_NONE;
 }
+// AirDrop 收书后的一次性打开请求，扫描完成后执行。/ One-shot AirDrop open request, served after the scan.
+static char s_open_path[BOOK_STORE_PATH_MAX];
+
 static void on_enter(app_ctx_t* ctx) {
     s_resume_path[0] = 0;
+    if (!book_store_take_open_request(s_open_path, sizeof(s_open_path))) s_open_path[0] = 0;
     ensure_prep();
     s_view = SHELF;
     ctx->leaf = 0;
     s_count = 0;
     s_px = app_settings_book_px();
     s_scan_pending = true;
-    s_resume_pending = true;
+    s_resume_pending = !s_open_path[0];
     // 传书页已停止并 join HTTP，安全注销且只丢弃对应路径的旧进度。
     // Transfer has stopped and joined HTTP; safely unregister only invalidated paths.
     pending_drop_invalidated();
@@ -1430,6 +1436,7 @@ static void book_on_exit(app_ctx_t* ctx) {
 // Stop old-card handles and font preparation before the loop switches to the builtin font.
 static void book_on_media_lost(app_ctx_t* ctx) {
     s_resume_path[0] = 0;
+    s_open_path[0] = 0;
     lock_draw();
     save_progress();
     free_book();
@@ -1629,6 +1636,13 @@ static app_redraw_t on_tick(app_ctx_t* ctx) {
         if (read_pico_sd_get_info(&info) == ESP_ERR_NOT_FINISHED) return APP_REDRAW_NONE;
         s_scan_pending = false;
         scan_shelf(ctx);
+        if (s_open_path[0]) {
+            char path[BOOK_STORE_PATH_MAX];
+            copy_text(path, sizeof(path), s_open_path);
+            s_open_path[0] = 0;
+            open_book(ctx, path);
+            return APP_REDRAW_FULL;
+        }
         if (s_resume_pending) {
             s_resume_pending = false;
             char path[BOOK_STORE_PATH_MAX];

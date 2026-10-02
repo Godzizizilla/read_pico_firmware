@@ -69,7 +69,7 @@ static uint8_t png_paeth(int a, int b, int c) {
 
 // 常见8位非交错PNG在解压缓冲内逐行还原，避免再分配一份完整RGB图。
 // Unfilter common 8-bit noninterlaced PNG in place, avoiding a second full RGB image allocation.
-static bool png_decode(const uint8_t* data, size_t len, size_t budget,
+static bool png_decode(const uint8_t* data, size_t len, unsigned max_w, unsigned max_h, size_t budget,
                        uint8_t** pixels, uint16_t* width, uint16_t* height) {
     if (len < 33 || memcmp(data,"\x89PNG\r\n\x1a\n",8) || png_u32(data+8)!=13 || memcmp(data+12,"IHDR",4)) return false;
     unsigned w=png_u32(data+16), h=png_u32(data+20), type=data[25];
@@ -96,8 +96,8 @@ static bool png_decode(const uint8_t* data, size_t len, size_t budget,
     }
     if (!ended || !packed_n || (type==3 && (!palette || trans_n>palette_n))) return false;
     unsigned dw=w,dh=h;
-    if (dw>648) { dh=dh*648/dw;dw=648; }
-    if (dh>1000) { dw=dw*1000/dh;dh=1000; }
+    if (dw>max_w) { dh=dh*max_w/dw;dw=max_w; }
+    if (dh>max_h) { dw=dw*max_h/dh;dh=max_h; }
     if(!dw)dw=1;
     if(!dh)dh=1;
     if((size_t)dw*dh>budget)return false;
@@ -196,7 +196,7 @@ static int jpeg_write(JDEC* jd, void* bitmap, JRECT* r) {
 #endif
     return 1;
 }
-static bool jpeg_decode(const uint8_t* data, size_t len, size_t budget,
+static bool jpeg_decode(const uint8_t* data, size_t len, unsigned max_w, unsigned max_h, size_t budget,
                         uint8_t** pixels, uint16_t* width, uint16_t* height) {
     void* work = heap_caps_malloc(8192, PSRAM_CAPS);
     if (!work) return false;
@@ -206,8 +206,8 @@ static bool jpeg_decode(const uint8_t* data, size_t len, size_t budget,
     if (jd_prepare(&jd, jpeg_read, work, 8192, &io) != JDR_OK || !jd.width || !jd.height ||
         jd.width > 8192 || jd.height > 8192 || (uint64_t)jd.width * jd.height > 16u * 1024u * 1024u) goto done;
     io.width = jd.width; io.height = jd.height;
-    if (io.width > 648) { io.height = io.height * 648 / io.width; io.width = 648; }
-    if (io.height > 1000) { io.width = io.width * 1000 / io.height; io.height = 1000; }
+    if (io.width > max_w) { io.height = io.height * max_w / io.width; io.width = max_w; }
+    if (io.height > max_h) { io.width = io.width * max_h / io.height; io.height = max_h; }
     if (!io.width) io.width = 1;
     if (!io.height) io.height = 1;
     if ((size_t)io.width * io.height > budget) goto done;
@@ -228,19 +228,24 @@ done:
 
 bool book_image_decode(const uint8_t* data, size_t len, size_t budget,
                        uint8_t** pixels, uint16_t* width, uint16_t* height) {
+    return book_image_decode_fit(data, len, 2u * 1024u * 1024u, 648, 1000, budget, pixels, width, height);
+}
+
+bool book_image_decode_fit(const uint8_t* data, size_t len, size_t max_len, unsigned max_w, unsigned max_h,
+                           size_t budget, uint8_t** pixels, uint16_t* width, uint16_t* height) {
     if (!pixels || !width || !height) return false;
     *pixels = NULL; *width = *height = 0;
-    if (!data || !len || len > 2u * 1024u * 1024u || allocated) return false;
-    if (png_decode(data,len,budget,pixels,width,height)) return true;
+    if (!data || !len || len > max_len || !max_w || !max_h || allocated) return false;
+    if (png_decode(data,len,max_w,max_h,budget,pixels,width,height)) return true;
     // 基线 JPEG 优先使用 MCU 分块缩小；小型渐进 JPEG 仍可走有界完整解码。
     // Prefer MCU-scaled baseline JPEG; bounded full decoding still handles small progressive JPEGs.
-    if (len >= 2 && data[0] == 0xff && data[1] == 0xd8 && jpeg_decode(data, len, budget, pixels, width, height)) return true;
+    if (len >= 2 && data[0] == 0xff && data[1] == 0xd8 && jpeg_decode(data, len, max_w, max_h, budget, pixels, width, height)) return true;
     int w, h, channels;
     if (!stbi_info_from_memory(data, (int)len, &w, &h, &channels) ||
         w <= 0 || h <= 0 || (uint64_t)w * h > 1024u * 1024u) return false;
     int dw = w, dh = h;
-    if (dw > 648) { dh = (int)((int64_t)dh * 648 / dw); dw = 648; }
-    if (dh > 1000) { dw = (int)((int64_t)dw * 1000 / dh); dh = 1000; }
+    if (dw > (int)max_w) { dh = (int)((int64_t)dh * max_w / dw); dw = (int)max_w; }
+    if (dh > (int)max_h) { dw = (int)((int64_t)dw * max_h / dh); dh = (int)max_h; }
     if (dw < 1) dw = 1;
     if (dh < 1) dh = 1;
     size_t size = (size_t)dw * dh;

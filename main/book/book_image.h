@@ -15,3 +15,7 @@
 /// Decode at most 648x1000 grayscale pixels; input <=2MiB; baseline JPEG <=16M pixels, others <=1M pixels with a <=4MiB decoder heap.
 bool book_image_decode(const uint8_t* data, size_t len, size_t budget,
                        uint8_t** pixels, uint16_t* width, uint16_t* height);
+/// 同上，但输入上限与适配框由调用方给出；像素与解码堆上限不变。
+/// Same, with caller-chosen input limit and fit box; pixel and decoder-heap limits unchanged.
+bool book_image_decode_fit(const uint8_t* data, size_t len, size_t max_len, unsigned max_w, unsigned max_h,
+                           size_t budget, uint8_t** pixels, uint16_t* width, uint16_t* height);

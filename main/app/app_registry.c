@@ -25,6 +25,7 @@ extern const app_desc_t app_ioe;
 extern const app_desc_t app_selftest;
 extern const app_desc_t app_book;
 extern const app_desc_t app_transfer;
+extern const app_desc_t app_airdrop;
 
 // 一份菜单，相近的页挨着排，由 ui_menu 按页翻。/ One menu, similar pages together; ui_menu pages through it.
 static const app_desc_t* const s_apps[] = {
@@ -44,6 +45,7 @@ static const app_desc_t* const s_apps[] = {
     &app_selftest,
     &app_book,
     &app_transfer,
+    &app_airdrop,
 };
 
 #define APP_COUNT ((int)(sizeof(s_apps) / sizeof(s_apps[0])))
@@ -70,4 +72,8 @@ const app_desc_t* app_home_page(void) {
 
 const app_desc_t* app_selftest_page(void) {
     return &app_selftest;
+}
+
+const app_desc_t* app_book_page(void) {
+    return &app_book;
 }

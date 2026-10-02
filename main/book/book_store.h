@@ -51,3 +51,8 @@ esp_err_t book_store_delete(const char* path, bool* removed);
 void book_store_notify_changed(void);
 /// 当前内容版本，仅由UI线程读写。/ Content revision, accessed only by the UI thread.
 unsigned book_store_revision(void);
+/// 请求书架下次进入时直接打开该书（AirDrop 收书后自动打开）；一次性，仅UI线程。
+/// Ask the shelf to open this book on its next entry (AirDrop auto-open); one-shot, UI thread only.
+void book_store_request_open(const char* path);
+/// 取走并清除打开请求；没有请求返回 false。/ Take and clear the open request; false when none.
+bool book_store_take_open_request(char* out, size_t cap);

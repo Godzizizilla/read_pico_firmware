@@ -47,3 +47,7 @@ CONFIG_ESP_WIFI_IRAM_OPT=n
 CONFIG_ESP_WIFI_RX_IRAM_OPT=n
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
 CONFIG_HTTPD_MAX_URI_LEN=1024
+
+# 隔空投送的 TLS 会话缓冲放 PSRAM；内部内存不足时 AirDrop 不报错、只是搜不到设备。
+# AirDrop TLS buffers live in PSRAM; short internal RAM makes the device silently undiscoverable.
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y

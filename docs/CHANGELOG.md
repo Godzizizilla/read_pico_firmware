@@ -3,6 +3,13 @@
 按日期和作者简述对用户可见的功能变化；详细实现历史见 Git。使用方法见 [README](../README.zh-CN.md)。
 User-visible changes by date and author; Git retains implementation history. See [README](../README.md) for usage.
 
+## 2026-10-02 · Godzilla
+
+- 隔空投送：新增 AirDrop 页，iPhone / Mac 可直接把图书或图片发到「小纸 Pico」，存入 TF 卡（`/books`、`/images`、`/airdrop`，同名编号不覆盖），传完自动打开图书或全屏显示 JPEG/PNG（按 EXIF 方向转正）；基于 ESP32Drop 接收端移植到 ESP-IDF v6.1。
+  Add an AirDrop page: iPhones and Macs can send books or images straight to “小纸 Pico”, saved to TF (`/books`, `/images`, `/airdrop`, numbered instead of overwritten), then a book opens in the reader or a JPEG/PNG is shown full screen with EXIF orientation applied; ports the ESP32Drop receiver to ESP-IDF v6.1.
+- 内存：mbedTLS 分配改到 PSRAM，保证隔空投送的 TLS 会话能建立。
+  Move mbedTLS allocations to PSRAM so AirDrop TLS sessions can start.
+
 ## 2026-09-28 · UNSaWEN
 
 - 阅读：进入书架先确认是否续读；ZIP目录连续读取、字宽测量不生成位图，当前章先排起始/续读页，其余分页分批补齐。

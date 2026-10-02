@@ -39,6 +39,7 @@ idf.py build
 | `main/display.*` `sleep.*` `settings.*` | 刷屏封装、睡眠/锁屏、NVS 设置。/ Present helpers, sleep/lock, NVS. |
 | `components/read_pico/` | 板级 BSP：I2C、EPD 板定义与扫描时序、TF 卡、蜂鸣器、flash HPM。/ Board BSP. |
 | `components/read_pico_search/` | 离线拼音/首字母/英文书名匹配，设备和网页共用；字表由工具生成。/ Shared offline pinyin, initials and English matching with a generated table. |
+| `components/esp32drop/` | ESP32Drop 的 AirDrop 接收端（AWDL + TLS），上游 0BSD，改动清单见其 README；对外只用 `esp32drop.h`。/ ESP32Drop AirDrop receiver (AWDL + TLS), 0BSD upstream with its change list in the README; use only `esp32drop.h`. |
 | `components/read_pico_pmu/` | CW32L010 协议主机端。线格式在 `read_pico_pmu_protocol.h`。/ PMU host. |
 | `components/epdiy/` | 上游裁剪 fork（LCD 路径）。改动清单在其 LICENSE。不要为注释去改它。/ Trimmed upstream fork. Leave it alone for comment work. |
 | `components/continuous_du/` | 连续 DU，触摸跟手。/ Continuous DU for finger tracking. |
@@ -80,6 +81,7 @@ One file, one `app_desc_t`. Order matches `app_registry.c`.
 | `app_selftest.c` | 设备功能自检入口。/ Device self-test UI. | `pmu_selftest` |
 | `app_book.c` | TXT / EPUB 书架、目录、字号与逐书进度；晃动翻页实验默认关。/ TXT / EPUB shelf, TOC, size and per-book progress; experimental shake defaults off. | `book_*`, `ttf_font` |
 | `app_transfer.c` | 设备热点/已有 WiFi 传 TXT/EPUB 与 TF 卡 TTF 字体，触屏/网页配网与热点二维码，离页停止；停止按钮返回进入前的位置。/ AP/STA book and TF font upload with touchscreen/web provisioning and hotspot QR; stops and returns to the entry origin. | `read_pico_transfer`, `book_store` |
+| `app_airdrop.c` | 隔空投送收书/图片存 TF 卡，传完自动打开；独占无线，离页停止。/ AirDrop books and images to TF, opened when received; owns the radio, stops on exit. | `esp32drop`, `book_store`, `book_image` |
 
 加页：在 `main/apps/` 新建文件，实现需要的回调，把它加入 `app_registry.c` 的 `s_apps[]`。不要改 `app_loop.c`。
 

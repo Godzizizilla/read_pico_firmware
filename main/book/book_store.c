@@ -35,6 +35,17 @@ static bool s_roots_degraded;
 
 void book_store_notify_changed(void) { ++s_revision; }
 unsigned book_store_revision(void) { return s_revision; }
+
+static char s_open_request[BOOK_STORE_PATH_MAX];
+void book_store_request_open(const char* path) {
+    snprintf(s_open_request, sizeof(s_open_request), "%s", path ? path : "");
+}
+bool book_store_take_open_request(char* out, size_t cap) {
+    if (!s_open_request[0] || !out || cap <= strlen(s_open_request)) { s_open_request[0] = 0; return false; }
+    strcpy(out, s_open_request);
+    s_open_request[0] = 0;
+    return true;
+}
 bool book_store_roots_degraded(void) { return s_roots_degraded; }
 
 static esp_err_t ensure_dir(const char* path) {

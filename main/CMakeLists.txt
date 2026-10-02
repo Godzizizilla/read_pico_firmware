@@ -1,6 +1,7 @@
 set(main_requires
     read_pico
     read_pico_transfer
+    esp32drop
     read_pico_search
     espressif__qrcode
     continuous_du
@@ -36,6 +37,7 @@ idf_component_register(
         "apps/app_reading.c"
         "apps/app_book.c"
         "apps/app_transfer.c"
+        "apps/app_airdrop.c"
         "book/book_store.c"
         "book/book_progress.c"
         "book/book_source.c"
